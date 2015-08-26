@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,10 +16,45 @@ namespace DWS_Lite.Lib
             this.logger = logger;
         }
 
-        internal void DeleteOneDrive(string args)
+        internal void DeleteOneDrive()
         {
+            logger.output(
+                       ProcessUtil.RunCmd("/c taskkill /f /im OneDrive.exe > NUL 2>&1"));
+            logger.output(
+                ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
+
+            if (File.Exists(Paths.SysDir + @"Windows\System32\OneDriveSetup.exe"))
+            {
+
+                logger.output(
+                    ProcessUtil.StartProcess(Paths.SysDir + @"Windows\System32\OneDriveSetup.exe", "/uninstall"));
+            }
+            if (File.Exists(Paths.SysDir + @"Windows\SysWOW64\OneDriveSetup.exe"))
+            {
+                logger.output(
+                    ProcessUtil.StartProcess(Paths.SysDir + @"Windows\SysWOW64\OneDriveSetup.exe", "/uninstall"));
+            }
+
+            logger.output(
+                ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
+            logger.output(
+                ProcessUtil.RunCmd("/c rd \"%USERPROFILE%\\OneDrive\" /Q /S > NUL 2>&1"));
+            logger.output(
+                ProcessUtil.RunCmd("/c rd \"C:\\OneDriveTemp\" /Q /S > NUL 2>&1"));
+            logger.output(
+                ProcessUtil.RunCmd("/c rd \"%LOCALAPPDATA%\\Microsoft\\OneDrive\" /Q /S > NUL 2>&1"));
+            logger.output(
+                ProcessUtil.RunCmd("/c rd \"%PROGRAMDATA%\\Microsoft OneDrive\" /Q /S > NUL 2>&1"));
+            logger.output(
+                 ProcessUtil.RunCmd(
+                    "/c REG DELETE \"HKEY_CLASSES_ROOT\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
+            logger.output(
+                 ProcessUtil.RunCmd(
+                    "/c REG DELETE \"HKEY_CLASSES_ROOT\\Wow6432Node\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
+
 
         }
+
 
         internal void disableSpyTasks()
         {
@@ -71,6 +107,10 @@ namespace DWS_Lite.Lib
             }
         }
 
+        internal void DeleteWindows10MetroApp(string appname)
+        {
+            ProcessUtil.RunPowerShell("-command \"Get-AppxPackage *" + appname + "* | Remove-AppxPackage\"");
+        }
         internal void disablehostsandaddfirewall()
         {
             try
@@ -150,6 +190,45 @@ namespace DWS_Lite.Lib
             ProcessUtil.RunCmd("/c reg delete \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"PeriodInNanoSeconds\" /f ");
             // DELETE KEYLOGGER
             logger.output("Delete keylogger...");
+        }
+
+        //TODO: Refactor, Move to a More be-fitting Class 
+        internal void SetRegValueHKCU(string regkeyfolder, string paramname, string paramvalue,
+            Microsoft.Win32.RegistryValueKind keytype)
+        {
+            try
+            {
+                RegistryKey myKey = Registry.CurrentUser.OpenSubKey(regkeyfolder, true);
+                if (myKey != null)
+                {
+                    myKey.SetValue(paramname, paramvalue, keytype);
+                    myKey.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                //fatalerrors++;
+                logger.output(logger.GetTranslateText("Error") + ": " + ex.Message);
+            }
+        }
+        //TODO: Refactor, Move to a More be-fitting Class 
+        internal void SetRegValueHKLM(string regkeyfolder, string paramname, string paramvalue,
+            Microsoft.Win32.RegistryValueKind keytype)
+        {
+            try
+            {
+                RegistryKey myKey = Registry.LocalMachine.OpenSubKey(regkeyfolder, true);
+                if (myKey != null)
+                {
+                    myKey.SetValue(paramname, paramvalue, keytype);
+                    myKey.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+               // fatalerrors++;
+                logger.output(logger.GetTranslateText("Error") + ": " + ex.Message);
+            }
         }
     }
 }

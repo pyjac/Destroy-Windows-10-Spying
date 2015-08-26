@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Resources;
 using System.Text;
 using System.Windows.Forms;
 
@@ -10,11 +12,13 @@ namespace DWS_Lite.Lib
     class Logger
     {
         private DestroyWindowsSpyingMainForm destroyWindowsSpyingMainForm;
+        private ResourceManager rm;
         private string logfilename = "DWS.log";
 
         public Logger(DestroyWindowsSpyingMainForm destroyWindowsSpyingMainForm)
         {
             this.destroyWindowsSpyingMainForm = destroyWindowsSpyingMainForm;
+            this.rm = destroyWindowsSpyingMainForm.rm;
         }
 
         public void output(string str, bool split = false)
@@ -54,5 +58,20 @@ namespace DWS_Lite.Lib
                 this.destroyWindowsSpyingMainForm.appendLogOutputTextBox("==========================\n");
             }
         }
+
+       
+        //TODO: refactor
+        public string GetTranslateText(string name)
+        {
+            try
+            {
+                return rm.GetString(name);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
     }
 }

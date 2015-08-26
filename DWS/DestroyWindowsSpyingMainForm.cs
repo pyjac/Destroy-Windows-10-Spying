@@ -26,7 +26,7 @@ namespace DWS_Lite
     public partial class DestroyWindowsSpyingMainForm : Form
     {
 
-        private ResourceManager rm;
+        internal ResourceManager rm;
         private string path = Path.GetPathRoot(Environment.SystemDirectory);
         private string ShellCmdLocation = null;
         private string system32location = null;
@@ -57,6 +57,8 @@ namespace DWS_Lite
 
             SetLanguage(getLang(args));
             ChangeLanguage();
+
+          
 
         }
 
@@ -185,7 +187,7 @@ namespace DWS_Lite
             {
                 return rm.GetString(name);
             }
-            catch (Exception ex)
+            catch (Exception )
             {
                 return null;
             }
@@ -193,7 +195,7 @@ namespace DWS_Lite
 
         private void CheckEnableOrDisableUAC()
         {
-            //SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", "EnableLUA", "1", RegistryValueKind.DWord);
+            //destroyWindowsSpying.SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", "EnableLUA", "1", RegistryValueKind.DWord);
 
             if (WindowsUtil.isLUAEnabled())
             {
@@ -217,28 +219,6 @@ namespace DWS_Lite
         private void btnDestroyWindowsSpying_Click(object sender, EventArgs e)
         {
             StartDestroyWindowsSpying();
-        }
-
-        private void output(string str, bool split = false)
-        {
-            try
-            {
-                Invoke(new MethodInvoker(delegate
-                {
-                    outputnoinvoke(str, split);
-                }));
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    outputnoinvoke(str, split);
-                }
-                catch (Exception)
-                {
-                    fatalerrors++;
-                }
-            }
         }
 
         private void progressbaradd(int numberadd)
@@ -267,22 +247,6 @@ namespace DWS_Lite
                 {
 
                 }
-            }
-        }
-
-        private void outputnoinvoke(string str, bool split = false)
-        {
-            DateTime temp = DateTime.Now;
-            str = "[" + temp.Hour.ToString() + ":" + temp.Minute.ToString() + ":" + temp.Second.ToString() + "] " + str;
-            File.WriteAllText(logfilename, File.ReadAllText(logfilename) + str + "\n");
-            Console.WriteLine(str);
-            LogOutputTextBox.Text += str + "\n";
-            if (split)
-            {
-
-                File.WriteAllText(logfilename, File.ReadAllText(logfilename) + "==========================\n");
-                Console.WriteLine("==========================");
-                LogOutputTextBox.Text += "==========================\n";
             }
         }
 
@@ -352,48 +316,8 @@ namespace DWS_Lite
 
         }
         
-        private void SetRegValueHKCU(string regkeyfolder, string paramname, string paramvalue,
-            Microsoft.Win32.RegistryValueKind keytype)
-        {
-            try
-            {
-                RegistryKey myKey = Registry.CurrentUser.OpenSubKey(regkeyfolder, true);
-                if (myKey != null)
-                {
-                    myKey.SetValue(paramname, paramvalue, keytype);
-                    myKey.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                fatalerrors++;
-                output(GetTranslateText("Error") + ": " + ex.Message);
-            }
-        }
-
-        private void DeleteWindows10MetroApp(string appname)
-        {
-            ProcessUtil.RunPowerShell("-command \"Get-AppxPackage *" + appname + "* | Remove-AppxPackage\"");
-        }
-
-        private void SetRegValueHKLM(string regkeyfolder, string paramname, string paramvalue,
-            Microsoft.Win32.RegistryValueKind keytype)
-        {
-            try
-            {
-                RegistryKey myKey = Registry.LocalMachine.OpenSubKey(regkeyfolder, true);
-                if (myKey != null)
-                {
-                    myKey.SetValue(paramname, paramvalue, keytype);
-                    myKey.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                fatalerrors++;
-                output(GetTranslateText("Error") + ": " + ex.Message);
-            }
-        }
+       
+        
 
         private void LogOutputTextBox_TextChanged(object sender, EventArgs e)
         {
@@ -409,9 +333,9 @@ namespace DWS_Lite
         {
             EnableOrDisableTab(false);
             setcompletetext(true);
-            output("Starting: " + DateTime.Now.ToString() + ".");
-            output(getwindowsbuildorversion());
-            output("=====================================");
+            logger.output("Starting: " + DateTime.Now.ToString() + ".");
+            logger.output(getwindowsbuildorversion());
+            logger.output("=====================================");
             fatalerrors = 0;
             ProgressBarStatus.Value = 0;
             new Thread(() =>
@@ -427,13 +351,13 @@ namespace DWS_Lite
                 try
                 {
                     string restorepoint_name = "DestroyWindowsSpying " + DateTime.Now.ToString();
-                    output("Creating restore point " + restorepoint_name + "...");
+                    logger.output("Creating restore point " + restorepoint_name + "...");
                     WindowsUtil.CreateRestorePoint(restorepoint_name);
-                    output("Restore point " + restorepoint_name + " created.");
+                    logger.output("Restore point " + restorepoint_name + " created.");
                 }
                 catch (Exception ex)
                 {
-                    output("Error creating restore point.");
+                    logger.output("Error creating restore point. Reason: " + ex.Message);
                 }
             }
             progressbaradd(10);
@@ -450,71 +374,71 @@ namespace DWS_Lite
             if (checkBoxDisablePrivateSettings.Checked)
             {
 
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{21157C1F-2651-4CC1-90CA-1F28B02263F6}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{2EEF81BE-33FA-4800-9670-1CD474972C3F}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{7D7E8402-7C54-4821-A34E-AEEFD62DED93}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{992AFA70-6F47-4148-B3E9-3003349C1548}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{9D9E0118-1807-4F2E-96E4-2CE57142E196}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{A8804298-2D5F-42E3-9531-9C8C39EB29CE}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{B19F89AF-E3EB-444B-8DEA-202575A71599}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{C1D23ACC-752B-43E5-8448-8D0E519CD6D6}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{D89823BA-7180-4B81-B50C-7E471E6121A3}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{E5323777-F976-4f5b-9B55-B94699C46E44}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{E6AD100E-5F4E-44CD-BE0F-2265D88D14F5}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(
+                destroyWindowsSpying.SetRegValueHKCU(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{E83AF229-8640-4D18-A213-E22675EBB2C3}",
                     "Value", "Deny", RegistryValueKind.String);
-                SetRegValueHKCU(@"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\LooselyCoupled",
+                destroyWindowsSpying.SetRegValueHKCU(@"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\LooselyCoupled",
                     "Value", "Deny", RegistryValueKind.String);
-                output("Disable private settings");
-                SetRegValueHKCU(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Search", "CortanaEnabled", "0",
+                logger.output("Disable private settings");
+                destroyWindowsSpying.SetRegValueHKCU(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Search", "CortanaEnabled", "0",
                     RegistryValueKind.DWord);
-                SetRegValueHKCU(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Search", "BingSearchEnabled", "0",
+                destroyWindowsSpying.SetRegValueHKCU(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Search", "BingSearchEnabled", "0",
                     RegistryValueKind.DWord);
             }
             progressbaradd(10); //55
             if (checkBoxDisableWindowsDefender.Checked)
             {
-                SetRegValueHKLM(@"SOFTWARE\Policies\Microsoft\Windows Defender", "DisableAntiSpyware", "1",
+                destroyWindowsSpying.SetRegValueHKLM(@"SOFTWARE\Policies\Microsoft\Windows Defender", "DisableAntiSpyware", "1",
                     RegistryValueKind.DWord);
-                output("Disable Windows Defender.");
+                logger.output("Disable Windows Defender.");
             }
             progressbaradd(5); //60
             if (checkBoxSetDefaultPhoto.Checked)
             {
-                SetRegValueHKCU(@"Software\Classes\.ico", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                SetRegValueHKCU(@"Software\Classes\.tiff", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                SetRegValueHKCU(@"Software\Classes\.bmp", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                SetRegValueHKCU(@"Software\Classes\.png", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                SetRegValueHKCU(@"Software\Classes\.gif", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                SetRegValueHKCU(@"Software\Classes\.jpeg", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                SetRegValueHKCU(@"Software\Classes\.jpg", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
-                output("Set Default PhotoViewer");
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.ico", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.tiff", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.bmp", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.png", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.gif", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.jpeg", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                destroyWindowsSpying.SetRegValueHKCU(@"Software\Classes\.jpg", null, "PhotoViewer.FileAssoc.Tiff", RegistryValueKind.String);
+                logger.output("Set Default PhotoViewer");
             }
             progressbaradd(10); //70
             if (checkBoxSPYTasks.Checked)
@@ -584,164 +508,65 @@ namespace DWS_Lite
             }
         }
 
-
-        void disablespytasks()
-        {
-
-
-            string[] disabletaskslist =
-                {
-                    @"Microsoft\Office\Office ClickToRun Service Monitor",
-                    @"Microsoft\Office\OfficeTelemetryAgentFallBack2016",
-                    @"Microsoft\Office\OfficeTelemetryAgentLogOn2016",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-                    @"Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
-                    @"Microsoft\Windows\Shell\FamilySafetyMonitor",
-                    @"Microsoft\Windows\Shell\FamilySafetyRefresh",
-                    @"Microsoft\Windows\Application Experience\AitAgent",
-                    @"Microsoft\Windows\Application Experience\ProgramDataUpdater",
-                    @"Microsoft\Windows\Application Experience\StartupAppTask",
-                    @"Microsoft\Windows\Autochk\Proxy",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-                    @"Microsoft\Office\OfficeTelemetry\AgentFallBack2016",
-                    @"Microsoft\Office\OfficeTelemetry\OfficeTelemetryAgentLogOn2016",
-                    @"Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
-                    @"Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
-                    @"Microsoft\Windows\Maintenance\WinSAT",
-                    @"Microsoft\Windows\Media Center\ActivateWindowsSearch",
-                    @"Microsoft\Windows\Media Center\ConfigureInternetTimeService",
-                    @"Microsoft\Windows\Media Center\DispatchRecoveryTasks",
-                    @"Microsoft\Windows\Media Center\ehDRMInit",
-                    @"Microsoft\Windows\Media Center\InstallPlayReady",
-                    @"Microsoft\Windows\Media Center\mcupdate",
-                    @"Microsoft\Windows\Media Center\MediaCenterRecoveryTask",
-                    @"Microsoft\Windows\Media Center\ObjectStoreRecoveryTask",
-                    @"Microsoft\Windows\Media Center\OCURActivate",
-                    @"Microsoft\Windows\Media Center\OCURDiscovery",
-                    @"Microsoft\Windows\Media Center\PBDADiscovery",
-                    @"Microsoft\Windows\Media Center\PBDADiscoveryW1",
-                    @"Microsoft\Windows\Media Center\PBDADiscoveryW2",
-                    @"Microsoft\Windows\Media Center\PvrRecoveryTask",
-                    @"Microsoft\Windows\Media Center\PvrScheduleTask",
-                    @"Microsoft\Windows\Media Center\RegisterSearch",
-                    @"Microsoft\Windows\Media Center\ReindexSearchRoot",
-                    @"Microsoft\Windows\Media Center\SqlLiteRecoveryTask",
-                    @"Microsoft\Windows\Media Center\UpdateRecordPath"
-                };
-            for (int i = 0; i < disabletaskslist.Length; i++)
-            {
-                ProcStartargs("SCHTASKS", "/Change /TN \"" + disabletaskslist[i] + "\" /disable");
-                output("Disabled task: " + disabletaskslist[i]);
-            }
-        }
-
-        // Win 7/8.1 
-        void disablehostsandaddfirewall()
-        {
-            try
-            {
-                string hostslocation = system32location + @"drivers\etc\hosts";
-                string hosts = null;
-                if (File.Exists(hostslocation))
-                {
-                    hosts = File.ReadAllText(hostslocation);
-                    File.SetAttributes(hostslocation, FileAttributes.Normal);
-                    FileUtil.DeleteFile(hostslocation);
-                }
-                File.Create(hostslocation).Close();
-                File.WriteAllText(hostslocation, hosts + "\r\n");
-                for (int i = 0; i < HostsDomains.hostsdomains.Length; i++)
-                {
-                    if (hosts.IndexOf(HostsDomains.hostsdomains[i]) == -1)
-                    {
-                        ProcStartargs(ShellCmdLocation,
-                            "/c echo " + "0.0.0.0 " + HostsDomains.hostsdomains[i] + " >> \"" + hostslocation +
-                            "\"");
-                        output("Add to hosts - " + HostsDomains.hostsdomains[i]);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                fatalerrors++;
-                output("Error add HOSTS");
-            }
-            ProcessUtil.RunCmd("/c ipconfig /flushdns");
-
-            output("Add hosts MS complete.");
-            ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS Spynet block\"");
-            ProcessUtil.RunCmd("/c netsh advfirewall firewall add rule name=\"MS Spynet block\" dir=out interface=any action=block remoteip=23.96.0.0/13");
-            output("Add Windows Firewall rule: \"MS Spynet block\"");
-            ProcessUtil.RunCmd("/c route -p add 23.218.212.69 MASK 255.255.255.255 0.0.0.0");
-            ProcessUtil.RunCmd("/c route -p add 65.55.108.23 MASK 255.255.255.255 0.0.0.0");
-            ProcessUtil.RunCmd("/c route -p add 65.39.117.230 MASK 255.255.255.255 0.0.0.0");
-            ProcessUtil.RunCmd("/c route -p add 134.170.30.202 MASK 255.255.255.255 0.0.0.0");
-            ProcessUtil.RunCmd("/c route -p add 137.116.81.24 MASK 255.255.255.255 0.0.0.0");
-            ProcessUtil.RunCmd("/c route -p add 204.79.197.200 MASK 255.255.255.255 0.0.0.0");
-            ProcessUtil.RunCmd("/c route -p add 23.218.212.69 MASK 255.255.255.255 0.0.0.0");
-
-        }
-
         private void RemoveWindows10Apps()
         {
+           
             if (checkBoxDeleteApp3d.Checked)
             {
-                DeleteWindows10MetroApp("3d");
-                output("Delete builder 3D");
+                destroyWindowsSpying.DeleteWindows10MetroApp("3d");
+                logger.output("Delete builder 3D");
             }
             if (checkBoxDeleteAppCamera.Checked)
             {
-                DeleteWindows10MetroApp("camera");
-                output("Delete Camera");
+                destroyWindowsSpying.DeleteWindows10MetroApp("camera");
+                logger.output("Delete Camera");
             }
             if (checkBoxDeleteMailCalendarMaps.Checked)
             {
-                DeleteWindows10MetroApp("communi");
-                DeleteWindows10MetroApp("maps");
-                output("Delete Mail, Calendar, Maps");
+                destroyWindowsSpying.DeleteWindows10MetroApp("communi");
+                destroyWindowsSpying.DeleteWindows10MetroApp("maps");
+                logger.output("Delete Mail, Calendar, Maps");
             }
             if (checkBoxDeleteAppBing.Checked)
             {
-                DeleteWindows10MetroApp("bing");
-                output("Delete Money, Sports, News and Weather");
+                destroyWindowsSpying.DeleteWindows10MetroApp("bing");
+                logger.output("Delete Money, Sports, News and Weather");
             }
             if (checkBoxDeleteAppZune.Checked)
             {
-                DeleteWindows10MetroApp("zune");
-                output("Delete Groove Music and Film TV");
+                destroyWindowsSpying.DeleteWindows10MetroApp("zune");
+                logger.output("Delete Groove Music and Film TV");
             }
             if (checkBoxDeleteAppPeopleOneNote.Checked)
             {
-                DeleteWindows10MetroApp("people");
-                DeleteWindows10MetroApp("note");
-                output("Delete People and OneNote");
+                destroyWindowsSpying.DeleteWindows10MetroApp("people");
+                destroyWindowsSpying.DeleteWindows10MetroApp("note");
+                logger.output("Delete People and OneNote");
             }
             if (checkBoxDeleteAppPhone.Checked)
             {
-                DeleteWindows10MetroApp("phone");
-                output("Delete Phone Companion");
+                destroyWindowsSpying.DeleteWindows10MetroApp("phone");
+                logger.output("Delete Phone Companion");
             }
             if (checkBoxDeleteAppPhotos.Checked)
             {
-                DeleteWindows10MetroApp("photo");
-                output("Delete Photos");
+                destroyWindowsSpying.DeleteWindows10MetroApp("photo");
+                logger.output("Delete Photos");
             }
             if (checkBoxDeleteAppSolit.Checked)
             {
-                DeleteWindows10MetroApp("solit");
-                output("Delete Solitaire Collection");
+                destroyWindowsSpying.DeleteWindows10MetroApp("solit");
+                logger.output("Delete Solitaire Collection");
             }
             if (checkBoxDeleteAppVoice.Checked)
             {
-                DeleteWindows10MetroApp("soundrec");
-                output("Delete Voice Recorder");
+                destroyWindowsSpying.DeleteWindows10MetroApp("soundrec");
+                logger.output("Delete Voice Recorder");
             }
             if (checkBoxDeleteAppXBOX.Checked)
             {
-                DeleteWindows10MetroApp("xbox");
-                output("Delete XBOX");
+                destroyWindowsSpying.DeleteWindows10MetroApp("xbox");
+                logger.output("Delete XBOX");
             }
 
         }
@@ -771,7 +596,7 @@ namespace DWS_Lite
                 MessageBox.Show(GetTranslateText("PressOkAndWait15"));
                 new Thread(() =>
                 {
-                    DeleteWindows10MetroApp(null);
+                    destroyWindowsSpying.DeleteWindows10MetroApp(null);
                     Invoke(new MethodInvoker(delegate
                     {
                         EnableOrDisableTab(true);
@@ -792,9 +617,9 @@ namespace DWS_Lite
 
         private void btnEnableUac_Click(object sender, EventArgs e)
         {
-            SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\", "EnableLUA", "1",
+            destroyWindowsSpying.SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\", "EnableLUA", "1",
                 RegistryValueKind.DWord);
-            output("Enable UAC");
+            logger.output("Enable UAC");
             CheckEnableOrDisableUAC();
             if (
                 MessageBox.Show(GetTranslateText("CompleteMSG"), GetTranslateText("Info"), MessageBoxButtons.YesNo,
@@ -806,9 +631,9 @@ namespace DWS_Lite
 
         private void btnDisableUac_Click(object sender, EventArgs e)
         {
-            SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\", "EnableLUA", "0",
+            destroyWindowsSpying.SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\", "EnableLUA", "0",
                 RegistryValueKind.DWord);
-            output("Disable UAC");
+            logger.output("Disable UAC");
             CheckEnableOrDisableUAC();
             if (
                 MessageBox.Show(GetTranslateText("CompleteMSG"), GetTranslateText("Info"), MessageBoxButtons.YesNo,
@@ -822,19 +647,19 @@ namespace DWS_Lite
         {
             ProcessUtil.RunPowerShell("-command \"Set-Service -Name wuauserv -StartupType Automatic\"");
             ProcessUtil.RunCmd("/c net start wuauserv");
-            output("Windows Update enabled");
+            logger.output("Windows Update enabled");
         }
 
         private void btnDisableWindowsUpdate_Click(object sender, EventArgs e)
         {
             ProcessUtil.RunCmd("/c net stop wuauserv");
             ProcessUtil.RunPowerShell("-command \"Set-Service -Name wuauserv -StartupType Disabled\"");
-            output("Windows Update disabled");
+            logger.output("Windows Update disabled");
         }
 
         private void btnOpenAndEditHosts_Click(object sender, EventArgs e)
         {
-            output(ProcStartargs("notepad", system32location + @"drivers\etc\hosts"));
+            logger.output(ProcessUtil.StartProcess("notepad", system32location + @"drivers\etc\hosts"));
         }
 
         private void DestroyWindowsSpyingMainForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -923,41 +748,7 @@ namespace DWS_Lite
                 EnableOrDisableTab(false);
                 try
                 {
-                    output(
-                        ProcessUtil.RunCmd("/c taskkill /f /im OneDrive.exe > NUL 2>&1"));
-                    output(
-                        ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
-
-                    if (File.Exists(path + @"Windows\System32\OneDriveSetup.exe"))
-                    {
-
-                        output(
-                            ProcStartargs(path + @"Windows\System32\OneDriveSetup.exe", "/uninstall"));
-                    }
-                    if (File.Exists(path + @"Windows\SysWOW64\OneDriveSetup.exe"))
-                    {
-                        output(
-                            ProcStartargs(path + @"Windows\SysWOW64\OneDriveSetup.exe", "/uninstall"));
-                    }
-
-                    output(
-                        ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
-                    output(
-                        ProcessUtil.RunCmd("/c rd \"%USERPROFILE%\\OneDrive\" /Q /S > NUL 2>&1"));
-                    output(
-                        ProcessUtil.RunCmd("/c rd \"C:\\OneDriveTemp\" /Q /S > NUL 2>&1"));
-                    output(
-                        ProcessUtil.RunCmd("/c rd \"%LOCALAPPDATA%\\Microsoft\\OneDrive\" /Q /S > NUL 2>&1"));
-                    output(
-                        ProcessUtil.RunCmd("/c rd \"%PROGRAMDATA%\\Microsoft OneDrive\" /Q /S > NUL 2>&1"));
-                    output(
-                         ProcessUtil.RunCmd(
-                            "/c REG DELETE \"HKEY_CLASSES_ROOT\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
-                    output(
-                         ProcessUtil.RunCmd(
-                            "/c REG DELETE \"HKEY_CLASSES_ROOT\\Wow6432Node\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
-
-
+                    destroyWindowsSpying.DeleteOneDrive();
                 }
                 catch (Exception ex)
                 {
