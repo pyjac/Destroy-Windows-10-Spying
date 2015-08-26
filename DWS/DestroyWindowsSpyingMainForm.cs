@@ -17,9 +17,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
+using DWS_Lite.lib;
 
 namespace DWS_Lite
 {
+
+
     public partial class DestroyWindowsSpyingMainForm : Form
     {
 
@@ -31,38 +34,44 @@ namespace DWS_Lite
 
         public DestroyWindowsSpyingMainForm(string[] args)
         {
+            InitializeComponent();
+
             // Re create log file
-            try
-            {
-                if (!File.Exists(logfilename))
-                {
-                    File.Create(logfilename).Close();
-                }
-                else
-                {
-                    File.Delete(logfilename);
-                    File.Create(logfilename).Close();
-                }
-            }
-            catch (Exception)
-            {
-                
-            }
-            int WindowsBuildNumber = 0;
+            FileUtil.RecreateLogFile(logfilename);
             // Check windows version
-            using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\"))
+            CheckWindowsVersion();
+            //Check SYSNATIVE (x64)
+            setShellSys32Paths();
+
+            CheckEnableOrDisableUAC();
+
+            this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+
+            this.Text += Properties.Resources.build_number;
+            labelBuildDataTime.Text = "Build number:" + Properties.Resources.build_number + "  |  Build Time:" +
+                                      Properties.Resources.build_datatime;
+
+            SetLanguage(getLang(args));
+            ChangeLanguage();
+
+        }
+
+        private string getLang(string[] args)
+        {
+            string langname = null;
+            // check args lang
+            for (int i = 0; i < args.Length; i++)
             {
-                // в value массив из байт
-                WindowsBuildNumber = Convert.ToInt32(key.GetValue("CurrentBuildNumber"));
-                key.Close();
-                if (WindowsBuildNumber < 7600)
+                if (args[i].IndexOf("/lang=") > -1)
                 {
-                    MessageBox.Show("Minimum windows version - 7", "Error", MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    Process.GetCurrentProcess().Kill();
+                    langname = args[i].Replace("/lang=", null);
                 }
             }
-            //Check SYSNATIVE (x64)
+            return langname;
+        }
+
+        private void setShellSys32Paths()
+        {
             if (File.Exists(path + @"Windows\Sysnative\cmd.exe"))
             {
                 ShellCmdLocation = path + @"Windows\Sysnative\cmd.exe";
@@ -73,23 +82,19 @@ namespace DWS_Lite
                 ShellCmdLocation = path + @"Windows\System32\cmd.exe";
                 system32location = path + @"Windows\System32\";
             }
-            InitializeComponent();
-            this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            CheckEnableOrDisableUAC();
-            this.Text += Properties.Resources.build_number;
-            labelBuildDataTime.Text = "Build number:" + Properties.Resources.build_number + "  |  Build Time:" +
-                                      Properties.Resources.build_datatime;
-            string langname = null;
-            // check args lang
-            for (int i = 0; i < args.Length; i++)
+        }
+        private void CheckWindowsVersion()
+        {
+            int WindowsBuildNumber = WindowsUtil.getWindowsBuildNumber();
+
+
+            if (WindowsBuildNumber < 7600)
             {
-                if (args[i].IndexOf("/lang=") > -1)
-                {
-                    langname = args[i].Replace("/lang=", null);
-                }
+                MessageBox.Show("Minimum windows version - 7", "Error", MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                Process.GetCurrentProcess().Kill();
             }
-            SetLanguage(langname);
-            ChangeLanguage();
+
             // check Win 7 or 8.1
             if (WindowsBuildNumber < 10000)
             {
@@ -99,8 +104,8 @@ namespace DWS_Lite
                 btnDestroyWindows78Spy.Visible = true;
             }
             //------------------------------------------
-        }
 
+        }
         void SetLanguage(string currentlang = null)
         {
             if (currentlang == null)
@@ -180,37 +185,24 @@ namespace DWS_Lite
         private void CheckEnableOrDisableUAC()
         {
             //SetRegValueHKLM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", "EnableLUA", "1", RegistryValueKind.DWord);
-            using (
-                var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\")
-                )
+
+            if (WindowsUtil.isLUAEnabled())
             {
-                // в value массив из байт
-                int value = Convert.ToInt32(key.GetValue("EnableLUA"));
-                key.Close();
-                if (value == 0)
-                {
-                    btnEnableUac.Enabled = true;
-                    btnDisableUac.Enabled = false;
-                }
-                else
-                {
-                    btnEnableUac.Enabled = false;
-                    btnDisableUac.Enabled = true;
-                }
+                btnEnableUac.Enabled = true;
+                btnDisableUac.Enabled = false;
             }
-            using (
-                var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore\")
-                )
+            else
             {
-                // в value массив из байт
-                int value = Convert.ToInt32(key.GetValue("RPSessionInterval"));
-                key.Close();
-                if (value == 0)
-                {
-                    checkBoxCreateSystemRestorePoint.Checked = false;
-                    checkBoxCreateSystemRestorePoint.Enabled = false;
-                }
+                btnEnableUac.Enabled = false;
+                btnDisableUac.Enabled = true;
             }
+
+            if (WindowsUtil.isSystemRestoreEnabled())
+            {
+                checkBoxCreateSystemRestorePoint.Checked = false;
+                checkBoxCreateSystemRestorePoint.Enabled = false;
+            }
+
         }
 
         private void btnDestroyWindowsSpying_Click(object sender, EventArgs e)
@@ -355,20 +347,15 @@ namespace DWS_Lite
 
         private string getwindowsbuildorversion()
         {
-            using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\"))
-            {
 
-                // в value массив из байт
-                string value = "Product Name: " + key.GetValue("ProductName").ToString() + "\n";
-                value += "  Build: " + key.GetValue("BuildLabEx").ToString();
-                return value;
-            }
+            // в value массив из байт
+            string value = "Product Name: " + WindowsUtil.getSystemProductName() + "\n";
+            value += "  Build: " + WindowsUtil.getSystemBuild();
+            return value;
+
         }
 
-        private void DeleteFile(string filepath)
-        {
-            ProcStartargs(ShellCmdLocation, "/c del /F /Q " + filepath);
-        }
+
 
 
         private void SetRegValueHKCU(string regkeyfolder, string paramname, string paramvalue,
@@ -386,7 +373,7 @@ namespace DWS_Lite
             catch (Exception ex)
             {
                 fatalerrors++;
-                output( GetTranslateText("Error") + ": " + ex.Message);
+                output(GetTranslateText("Error") + ": " + ex.Message);
             }
         }
 
@@ -460,33 +447,33 @@ namespace DWS_Lite
             {
                 // DISABLE TELEMETRY
                 output("Disable telemetry...");
-                ProcStartargs(ShellCmdLocation, "/c net stop DiagTrack ");
-                ProcStartargs(ShellCmdLocation, "/c net stop diagnosticshub.standardcollector.service ");
-                ProcStartargs(ShellCmdLocation, "/c net stop dmwappushservice ");
-                ProcStartargs(ShellCmdLocation, "/c net stop WMPNetworkSvc ");
-                ProcStartargs(ShellCmdLocation, "/c sc config DiagTrack start=disabled ");
-                ProcStartargs(ShellCmdLocation, "/c sc config diagnosticshub.standardcollector.service start=disabled ");
-                ProcStartargs(ShellCmdLocation, "/c sc config dmwappushservice start=disabled ");
-                ProcStartargs(ShellCmdLocation, "/c sc config WMPNetworkSvc start=disabled ");
-                ProcStartargs(ShellCmdLocation, "/c REG ADD HKLM\\SYSTEM\\ControlSet001\\Control\\WMI\\AutoLogger\\AutoLogger-Diagtrack-Listener /v Start /t REG_DWORD /d 0 /f");
-                ProcStartargs(ShellCmdLocation, "/c net stop dmwappushservice");
-                ProcStartargs(ShellCmdLocation, "/c net stop diagtrack");
-                ProcStartargs(ShellCmdLocation, "/c sc delete dmwappushsvc");
-                ProcStartargs(ShellCmdLocation, "/c sc delete \"Diagnostics Tracking Service\"");
-                ProcStartargs(ShellCmdLocation, "/c sc delete diagtrack");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Device Metadata\" /v \"PreventDeviceMetadataFromNetwork\" /t REG_DWORD /d 1 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\DataCollection\" /v \"AllowTelemetry\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MRT\" /v \"DontOfferThroughWUAU\" /t REG_DWORD /d 1 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\" /v \"CEIPEnable\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"AITEnable\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"DisableUAR\" /t REG_DWORD /d 1 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\" /v \"AllowTelemetry\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\WMI\\AutoLogger\\AutoLogger-Diagtrack-Listener\" /v \"Start\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\WMI\\AutoLogger\\SQMLogger\" /v \"Start\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"NumberOfSIUFInPeriod\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"DisableUAR\" /t REG_DWORD /d 1 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\" /v \"CEIPEnable\" /t REG_DWORD /d 0 /f ");
-                ProcStartargs(ShellCmdLocation, "/c reg delete \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"PeriodInNanoSeconds\" /f ");
+                ProcessUtil.RunCmd("/c net stop DiagTrack ");
+                ProcessUtil.RunCmd("/c net stop diagnosticshub.standardcollector.service ");
+                ProcessUtil.RunCmd("/c net stop dmwappushservice ");
+                ProcessUtil.RunCmd("/c net stop WMPNetworkSvc ");
+                ProcessUtil.RunCmd("/c sc config DiagTrack start=disabled ");
+                ProcessUtil.RunCmd("/c sc config diagnosticshub.standardcollector.service start=disabled ");
+                ProcessUtil.RunCmd("/c sc config dmwappushservice start=disabled ");
+                ProcessUtil.RunCmd("/c sc config WMPNetworkSvc start=disabled ");
+                ProcessUtil.RunCmd("/c REG ADD HKLM\\SYSTEM\\ControlSet001\\Control\\WMI\\AutoLogger\\AutoLogger-Diagtrack-Listener /v Start /t REG_DWORD /d 0 /f");
+                ProcessUtil.RunCmd("/c net stop dmwappushservice");
+                ProcessUtil.RunCmd("/c net stop diagtrack");
+                ProcessUtil.RunCmd("/c sc delete dmwappushsvc");
+                ProcessUtil.RunCmd("/c sc delete \"Diagnostics Tracking Service\"");
+                ProcessUtil.RunCmd("/c sc delete diagtrack");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Device Metadata\" /v \"PreventDeviceMetadataFromNetwork\" /t REG_DWORD /d 1 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\DataCollection\" /v \"AllowTelemetry\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MRT\" /v \"DontOfferThroughWUAU\" /t REG_DWORD /d 1 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\" /v \"CEIPEnable\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"AITEnable\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"DisableUAR\" /t REG_DWORD /d 1 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\" /v \"AllowTelemetry\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\WMI\\AutoLogger\\AutoLogger-Diagtrack-Listener\" /v \"Start\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\WMI\\AutoLogger\\SQMLogger\" /v \"Start\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"NumberOfSIUFInPeriod\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"DisableUAR\" /t REG_DWORD /d 1 /f ");
+                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\" /v \"CEIPEnable\" /t REG_DWORD /d 0 /f ");
+                ProcessUtil.RunCmd("/c reg delete \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"PeriodInNanoSeconds\" /f ");
                 // DELETE KEYLOGGER
                 output("Delete keylogger...");
             }
@@ -669,7 +656,7 @@ namespace DWS_Lite
                 {
                     hosts = File.ReadAllText(hostslocation);
                     File.SetAttributes(hostslocation, FileAttributes.Normal);
-                    DeleteFile(hostslocation);
+                    FileUtil.DeleteFile(hostslocation);
                 }
                 File.Create(hostslocation).Close();
                 File.WriteAllText(hostslocation, hosts + "\r\n");
@@ -689,11 +676,11 @@ namespace DWS_Lite
                 fatalerrors++;
                 output("Error add HOSTS");
             }
-            ProcStartargs(ShellCmdLocation, "/c ipconfig /flushdns");
+            ProcessUtil.RunCmd("/c ipconfig /flushdns");
 
             output("Add hosts MS complete.");
-            ProcStartargs(ShellCmdLocation, "/c netsh advfirewall firewall delete rule name=\"MS Spynet block\"");
-            ProcStartargs(ShellCmdLocation, "/c netsh advfirewall firewall add rule name=\"MS Spynet block\" dir=out interface=any action=block remoteip=23.96.0.0/13");
+            ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS Spynet block\"");
+            ProcessUtil.RunCmd("/c netsh advfirewall firewall add rule name=\"MS Spynet block\" dir=out interface=any action=block remoteip=23.96.0.0/13");
             output("Add Windows Firewall rule: \"MS Spynet block\"");
 
         }
@@ -835,13 +822,13 @@ namespace DWS_Lite
         private void btnEnableWindowsUpdate_Click(object sender, EventArgs e)
         {
             ProcStartargs("powershell", "-command \"Set-Service -Name wuauserv -StartupType Automatic\"");
-            ProcStartargs(ShellCmdLocation, "/c net start wuauserv");
+            ProcessUtil.RunCmd("/c net start wuauserv");
             output("Windows Update enabled");
         }
 
         private void btnDisableWindowsUpdate_Click(object sender, EventArgs e)
         {
-            ProcStartargs(ShellCmdLocation, "/c net stop wuauserv");
+            ProcessUtil.RunCmd("/c net stop wuauserv");
             ProcStartargs("powershell", "-command \"Set-Service -Name wuauserv -StartupType Disabled\"");
             output("Windows Update disabled");
         }
@@ -938,9 +925,9 @@ namespace DWS_Lite
                 try
                 {
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c taskkill /f /im OneDrive.exe > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c taskkill /f /im OneDrive.exe > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
                     if (File.Exists(path + @"Windows\System32\OneDriveSetup.exe"))
                     {
 
@@ -953,15 +940,15 @@ namespace DWS_Lite
                             ProcStartargs(path + @"Windows\SysWOW64\OneDriveSetup.exe", "/uninstall"));
                     }
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c rd \"%USERPROFILE%\\OneDrive\" /Q /S > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c rd \"%USERPROFILE%\\OneDrive\" /Q /S > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c rd \"C:\\OneDriveTemp\" /Q /S > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c rd \"C:\\OneDriveTemp\" /Q /S > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c rd \"%LOCALAPPDATA%\\Microsoft\\OneDrive\" /Q /S > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c rd \"%LOCALAPPDATA%\\Microsoft\\OneDrive\" /Q /S > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation, "/c rd \"%PROGRAMDATA%\\Microsoft OneDrive\" /Q /S > NUL 2>&1"));
+                        ProcessUtil.RunCmd("/c rd \"%PROGRAMDATA%\\Microsoft OneDrive\" /Q /S > NUL 2>&1"));
                     output(
                         ProcStartargs(ShellCmdLocation,
                             "/c REG DELETE \"HKEY_CLASSES_ROOT\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
@@ -993,10 +980,10 @@ namespace DWS_Lite
 
         private void btnRemoveOldFirewallRules_Click(object sender, EventArgs e)
         {
-            ProcStartargs(ShellCmdLocation, "/c netsh advfirewall firewall delete rule name=\"MS Spynet block 1\"");
-            ProcStartargs(ShellCmdLocation, "/c netsh advfirewall firewall delete rule name=\"MS Spynet block 2\"");
-            ProcStartargs(ShellCmdLocation, "/c netsh advfirewall firewall delete rule name=\"MS telemetry block 1\"");
-            ProcStartargs(ShellCmdLocation, "/c netsh advfirewall firewall delete rule name=\"MS telemetry block 2\"");
+            ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS Spynet block 1\"");
+            ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS Spynet block 2\"");
+            ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS telemetry block 1\"");
+            ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS telemetry block 2\"");
             MessageBox.Show(GetTranslateText("Complete"), GetTranslateText("Info"));
         }
 
