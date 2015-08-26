@@ -122,6 +122,11 @@ namespace DWS_Lite
                 rm = lang.fr_FR.ResourceManager;
                 comboBoxLanguageSelect.Text = "fr-FR | French";
             }
+            else if (currentlang.IndexOf("es") > -1)
+            {
+                rm = lang.es_ES.ResourceManager;
+                comboBoxLanguageSelect.Text = "es-ES | Spanish";
+            }
             else
             {
                 rm = lang.en_US.ResourceManager;
@@ -197,7 +202,7 @@ namespace DWS_Lite
                 btnDisableUac.Enabled = true;
             }
 
-            if (WindowsUtil.isSystemRestoreEnabled())
+            if (WindowsUtil.isSystemRestoreEnabled() == 0)
             {
                 checkBoxCreateSystemRestorePoint.Checked = false;
                 checkBoxCreateSystemRestorePoint.Enabled = false;
@@ -555,31 +560,7 @@ namespace DWS_Lite
             progressbaradd(10); //70
             if (checkBoxSPYTasks.Checked)
             {
-
-                string[] disabletaskslist =
-                {
-                    @"Microsoft\Office\Office ClickToRun Service Monitor",
-                    @"Microsoft\Office\OfficeTelemetryAgentFallBack2016",
-                    @"Microsoft\Office\OfficeTelemetryAgentLogOn2016",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-                    @"Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
-                    @"Microsoft\Windows\Shell\FamilySafetyMonitor",
-                    @"Microsoft\Windows\Shell\FamilySafetyRefresh",
-                    @"Microsoft\Windows\Application Experience\AitAgent",
-                    @"Microsoft\Windows\Application Experience\ProgramDataUpdater",
-                    @"Microsoft\Windows\Application Experience\StartupAppTask",
-                    @"Microsoft\Windows\Autochk\Proxy",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
-                    @"Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-                    @"Microsoft\Office\OfficeTelemetry\AgentFallBack2016",
-                    @"Microsoft\Office\OfficeTelemetry\OfficeTelemetryAgentLogOn2016"
-                };
-                for (int i = 0; i < disabletaskslist.Length; i++)
-                {
-                    ProcStartargs("SCHTASKS", "/Change /TN \"" + disabletaskslist[i] + "\" /disable");
-                    output("Disabled task: " + disabletaskslist[i]);
-                }
+                disablespytasks();
             }
             progressbaradd(10); //80
             if (checkBoxDeleteWindows10Apps.Checked)
@@ -645,6 +626,58 @@ namespace DWS_Lite
         }
 
 
+        void disablespytasks()
+        {
+
+
+            string[] disabletaskslist =
+                {
+                    @"Microsoft\Office\Office ClickToRun Service Monitor",
+                    @"Microsoft\Office\OfficeTelemetryAgentFallBack2016",
+                    @"Microsoft\Office\OfficeTelemetryAgentLogOn2016",
+                    @"Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+                    @"Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+                    @"Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
+                    @"Microsoft\Windows\Shell\FamilySafetyMonitor",
+                    @"Microsoft\Windows\Shell\FamilySafetyRefresh",
+                    @"Microsoft\Windows\Application Experience\AitAgent",
+                    @"Microsoft\Windows\Application Experience\ProgramDataUpdater",
+                    @"Microsoft\Windows\Application Experience\StartupAppTask",
+                    @"Microsoft\Windows\Autochk\Proxy",
+                    @"Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
+                    @"Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+                    @"Microsoft\Office\OfficeTelemetry\AgentFallBack2016",
+                    @"Microsoft\Office\OfficeTelemetry\OfficeTelemetryAgentLogOn2016",
+                    @"Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+                    @"Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+                    @"Microsoft\Windows\Maintenance\WinSAT",
+                    @"Microsoft\Windows\Media Center\ActivateWindowsSearch",
+                    @"Microsoft\Windows\Media Center\ConfigureInternetTimeService",
+                    @"Microsoft\Windows\Media Center\DispatchRecoveryTasks",
+                    @"Microsoft\Windows\Media Center\ehDRMInit",
+                    @"Microsoft\Windows\Media Center\InstallPlayReady",
+                    @"Microsoft\Windows\Media Center\mcupdate",
+                    @"Microsoft\Windows\Media Center\MediaCenterRecoveryTask",
+                    @"Microsoft\Windows\Media Center\ObjectStoreRecoveryTask",
+                    @"Microsoft\Windows\Media Center\OCURActivate",
+                    @"Microsoft\Windows\Media Center\OCURDiscovery",
+                    @"Microsoft\Windows\Media Center\PBDADiscovery",
+                    @"Microsoft\Windows\Media Center\PBDADiscoveryW1",
+                    @"Microsoft\Windows\Media Center\PBDADiscoveryW2",
+                    @"Microsoft\Windows\Media Center\PvrRecoveryTask",
+                    @"Microsoft\Windows\Media Center\PvrScheduleTask",
+                    @"Microsoft\Windows\Media Center\RegisterSearch",
+                    @"Microsoft\Windows\Media Center\ReindexSearchRoot",
+                    @"Microsoft\Windows\Media Center\SqlLiteRecoveryTask",
+                    @"Microsoft\Windows\Media Center\UpdateRecordPath"
+                };
+            for (int i = 0; i < disabletaskslist.Length; i++)
+            {
+                ProcStartargs("SCHTASKS", "/Change /TN \"" + disabletaskslist[i] + "\" /disable");
+                output("Disabled task: " + disabletaskslist[i]);
+            }
+        }
+
         // Win 7/8.1 
         void disablehostsandaddfirewall()
         {
@@ -682,6 +715,13 @@ namespace DWS_Lite
             ProcessUtil.RunCmd("/c netsh advfirewall firewall delete rule name=\"MS Spynet block\"");
             ProcessUtil.RunCmd("/c netsh advfirewall firewall add rule name=\"MS Spynet block\" dir=out interface=any action=block remoteip=23.96.0.0/13");
             output("Add Windows Firewall rule: \"MS Spynet block\"");
+            ProcessUtil.RunCmd("/c route -p add 23.218.212.69 MASK 255.255.255.255 0.0.0.0");
+            ProcessUtil.RunCmd("/c route -p add 65.55.108.23 MASK 255.255.255.255 0.0.0.0");
+            ProcessUtil.RunCmd("/c route -p add 65.39.117.230 MASK 255.255.255.255 0.0.0.0");
+            ProcessUtil.RunCmd("/c route -p add 134.170.30.202 MASK 255.255.255.255 0.0.0.0");
+            ProcessUtil.RunCmd("/c route -p add 137.116.81.24 MASK 255.255.255.255 0.0.0.0");
+            ProcessUtil.RunCmd("/c route -p add 204.79.197.200 MASK 255.255.255.255 0.0.0.0");
+            ProcessUtil.RunCmd("/c route -p add 23.218.212.69 MASK 255.255.255.255 0.0.0.0");
 
         }
 
@@ -1004,7 +1044,12 @@ namespace DWS_Lite
                 rm = lang.fr_FR.ResourceManager;
                 ChangeLanguage();
             }
-            if (comboBoxLanguageSelect.Text.Split('|')[0].Replace(" ", "") == "en-US")
+            else if (comboBoxLanguageSelect.Text.Split('|')[0].Replace(" ", "") == "es-ES")
+            {
+                rm = lang.es_ES.ResourceManager;
+                ChangeLanguage();
+            }
+            else
             {
                 rm = lang.en_US.ResourceManager;
                 ChangeLanguage();
@@ -1018,6 +1063,7 @@ namespace DWS_Lite
             new Thread(() =>
             {
                 disablehostsandaddfirewall();
+                disablespytasks();
                 Invoke(new MethodInvoker(delegate
                 {
                     btnDestroyWindows78Spy.Enabled = true;
