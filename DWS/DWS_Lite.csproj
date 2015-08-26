@@ -84,7 +84,9 @@
       <DependentUpon>en-US.resx</DependentUpon>
     </Compile>
     <Compile Include="HostsDomains.cs" />
+    <Compile Include="Lib\DestroyWindowsSpying.cs" />
     <Compile Include="Lib\FileUtil.cs" />
+    <Compile Include="Lib\Logger.cs" />
     <Compile Include="Lib\Paths.cs" />
     <Compile Include="Lib\ProcessUtil.cs" />
     <Compile Include="Lib\WindowsUtil.cs" />

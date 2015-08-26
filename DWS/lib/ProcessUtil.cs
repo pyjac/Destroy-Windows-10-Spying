@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace DWS_Lite.lib
+namespace DWS_Lite.Lib
 {
     class ProcessUtil
     {
-        private static string StartProcess(string name, string args)
+        public static string StartProcess(string name, string args)
         {
             try
             {
@@ -42,6 +42,12 @@ namespace DWS_Lite.lib
         {
             return StartProcess(Paths.ShellCmdLocation, args);
         }
+
+        public static string RunPowerShell(string args)
+        {
+            return StartProcess("powershell", args);
+        }
+        
 
 
     }

@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace DWS_Lite.lib
+namespace DWS_Lite.Lib
 {
     class FileUtil
     {

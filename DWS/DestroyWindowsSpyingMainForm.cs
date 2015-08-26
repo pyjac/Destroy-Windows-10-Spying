@@ -17,7 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
-using DWS_Lite.lib;
+using DWS_Lite.Lib;
 
 namespace DWS_Lite
 {
@@ -31,10 +31,14 @@ namespace DWS_Lite
         private string ShellCmdLocation = null;
         private string system32location = null;
         private string logfilename = "DWS.log";
-
+        private Logger logger = null;
+        private DestroyWindowsSpying destroyWindowsSpying = null;
         public DestroyWindowsSpyingMainForm(string[] args)
         {
             InitializeComponent();
+
+            logger = new Logger(this);
+            destroyWindowsSpying = new DestroyWindowsSpying(logger);
 
             // Re create log file
             FileUtil.RecreateLogFile(logfilename);
@@ -282,6 +286,11 @@ namespace DWS_Lite
             }
         }
 
+        public void appendLogOutputTextBox(string str)
+        {
+            LogOutputTextBox.Text += str + "\n";
+        }
+
         private void EnableOrDisableTab(bool enableordisable)
         {
             try
@@ -332,23 +341,6 @@ namespace DWS_Lite
             }
         }
 
-        private void CreateRestorePoint(string description)
-        {
-            ManagementScope oScope = new ManagementScope("\\\\localhost\\root\\default");
-            ManagementPath oPath = new ManagementPath("SystemRestore");
-            ObjectGetOptions oGetOp = new ObjectGetOptions();
-            ManagementClass oProcess = new ManagementClass(oScope, oPath, oGetOp);
-
-            ManagementBaseObject oInParams =
-                oProcess.GetMethodParameters("CreateRestorePoint");
-            oInParams["Description"] = description;
-            oInParams["RestorePointType"] = 12; // MODIFY_SETTINGS
-            oInParams["EventType"] = 100;
-
-            ManagementBaseObject oOutParams =
-                oProcess.InvokeMethod("CreateRestorePoint", oInParams, null);
-        }
-
 
         private string getwindowsbuildorversion()
         {
@@ -359,10 +351,7 @@ namespace DWS_Lite
             return value;
 
         }
-
-
-
-
+        
         private void SetRegValueHKCU(string regkeyfolder, string paramname, string paramvalue,
             Microsoft.Win32.RegistryValueKind keytype)
         {
@@ -384,7 +373,7 @@ namespace DWS_Lite
 
         private void DeleteWindows10MetroApp(string appname)
         {
-            ProcStartargs("powershell", "-command \"Get-AppxPackage *" + appname + "* | Remove-AppxPackage\"");
+            ProcessUtil.RunPowerShell("-command \"Get-AppxPackage *" + appname + "* | Remove-AppxPackage\"");
         }
 
         private void SetRegValueHKLM(string regkeyfolder, string paramname, string paramvalue,
@@ -439,7 +428,7 @@ namespace DWS_Lite
                 {
                     string restorepoint_name = "DestroyWindowsSpying " + DateTime.Now.ToString();
                     output("Creating restore point " + restorepoint_name + "...");
-                    CreateRestorePoint(restorepoint_name);
+                    WindowsUtil.CreateRestorePoint(restorepoint_name);
                     output("Restore point " + restorepoint_name + " created.");
                 }
                 catch (Exception ex)
@@ -450,42 +439,12 @@ namespace DWS_Lite
             progressbaradd(10);
             if (checkBoxKeyLoggerAndTelemetry.Checked)
             {
-                // DISABLE TELEMETRY
-                output("Disable telemetry...");
-                ProcessUtil.RunCmd("/c net stop DiagTrack ");
-                ProcessUtil.RunCmd("/c net stop diagnosticshub.standardcollector.service ");
-                ProcessUtil.RunCmd("/c net stop dmwappushservice ");
-                ProcessUtil.RunCmd("/c net stop WMPNetworkSvc ");
-                ProcessUtil.RunCmd("/c sc config DiagTrack start=disabled ");
-                ProcessUtil.RunCmd("/c sc config diagnosticshub.standardcollector.service start=disabled ");
-                ProcessUtil.RunCmd("/c sc config dmwappushservice start=disabled ");
-                ProcessUtil.RunCmd("/c sc config WMPNetworkSvc start=disabled ");
-                ProcessUtil.RunCmd("/c REG ADD HKLM\\SYSTEM\\ControlSet001\\Control\\WMI\\AutoLogger\\AutoLogger-Diagtrack-Listener /v Start /t REG_DWORD /d 0 /f");
-                ProcessUtil.RunCmd("/c net stop dmwappushservice");
-                ProcessUtil.RunCmd("/c net stop diagtrack");
-                ProcessUtil.RunCmd("/c sc delete dmwappushsvc");
-                ProcessUtil.RunCmd("/c sc delete \"Diagnostics Tracking Service\"");
-                ProcessUtil.RunCmd("/c sc delete diagtrack");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Device Metadata\" /v \"PreventDeviceMetadataFromNetwork\" /t REG_DWORD /d 1 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\DataCollection\" /v \"AllowTelemetry\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MRT\" /v \"DontOfferThroughWUAU\" /t REG_DWORD /d 1 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\" /v \"CEIPEnable\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"AITEnable\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"DisableUAR\" /t REG_DWORD /d 1 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\" /v \"AllowTelemetry\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\WMI\\AutoLogger\\AutoLogger-Diagtrack-Listener\" /v \"Start\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\WMI\\AutoLogger\\SQMLogger\" /v \"Start\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"NumberOfSIUFInPeriod\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat\" /v \"DisableUAR\" /t REG_DWORD /d 1 /f ");
-                ProcessUtil.RunCmd("/c reg add \"HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\" /v \"CEIPEnable\" /t REG_DWORD /d 0 /f ");
-                ProcessUtil.RunCmd("/c reg delete \"HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Siuf\\Rules\" /v \"PeriodInNanoSeconds\" /f ");
-                // DELETE KEYLOGGER
-                output("Delete keylogger...");
+                destroyWindowsSpying.disableTelemetryAndKeylogger(); 
             }
             progressbaradd(15); //25
             if (checkBoxAddToHosts.Checked)
             {
-                disablehostsandaddfirewall();
+                destroyWindowsSpying.disablehostsandaddfirewall();
             }
             progressbaradd(20); //45
             if (checkBoxDisablePrivateSettings.Checked)
@@ -560,7 +519,7 @@ namespace DWS_Lite
             progressbaradd(10); //70
             if (checkBoxSPYTasks.Checked)
             {
-                disablespytasks();
+                destroyWindowsSpying.disableSpyTasks();
             }
             progressbaradd(10); //80
             if (checkBoxDeleteWindows10Apps.Checked)
@@ -861,7 +820,7 @@ namespace DWS_Lite
 
         private void btnEnableWindowsUpdate_Click(object sender, EventArgs e)
         {
-            ProcStartargs("powershell", "-command \"Set-Service -Name wuauserv -StartupType Automatic\"");
+            ProcessUtil.RunPowerShell("-command \"Set-Service -Name wuauserv -StartupType Automatic\"");
             ProcessUtil.RunCmd("/c net start wuauserv");
             output("Windows Update enabled");
         }
@@ -869,7 +828,7 @@ namespace DWS_Lite
         private void btnDisableWindowsUpdate_Click(object sender, EventArgs e)
         {
             ProcessUtil.RunCmd("/c net stop wuauserv");
-            ProcStartargs("powershell", "-command \"Set-Service -Name wuauserv -StartupType Disabled\"");
+            ProcessUtil.RunPowerShell("-command \"Set-Service -Name wuauserv -StartupType Disabled\"");
             output("Windows Update disabled");
         }
 
@@ -968,6 +927,7 @@ namespace DWS_Lite
                         ProcessUtil.RunCmd("/c taskkill /f /im OneDrive.exe > NUL 2>&1"));
                     output(
                         ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
+
                     if (File.Exists(path + @"Windows\System32\OneDriveSetup.exe"))
                     {
 
@@ -979,6 +939,7 @@ namespace DWS_Lite
                         output(
                             ProcStartargs(path + @"Windows\SysWOW64\OneDriveSetup.exe", "/uninstall"));
                     }
+
                     output(
                         ProcessUtil.RunCmd("/c ping 127.0.0.1 -n 5 > NUL 2>&1"));
                     output(
@@ -990,10 +951,10 @@ namespace DWS_Lite
                     output(
                         ProcessUtil.RunCmd("/c rd \"%PROGRAMDATA%\\Microsoft OneDrive\" /Q /S > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation,
+                         ProcessUtil.RunCmd(
                             "/c REG DELETE \"HKEY_CLASSES_ROOT\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
                     output(
-                        ProcStartargs(ShellCmdLocation,
+                         ProcessUtil.RunCmd(
                             "/c REG DELETE \"HKEY_CLASSES_ROOT\\Wow6432Node\\CLSID\\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\" /f > NUL 2>&1"));
 
 
@@ -1062,8 +1023,8 @@ namespace DWS_Lite
             fatalerrors = 0;
             new Thread(() =>
             {
-                disablehostsandaddfirewall();
-                disablespytasks();
+                destroyWindowsSpying.disablehostsandaddfirewall();
+                destroyWindowsSpying.disableSpyTasks();
                 Invoke(new MethodInvoker(delegate
                 {
                     btnDestroyWindows78Spy.Enabled = true;

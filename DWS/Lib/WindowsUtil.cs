@@ -2,10 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Management;
 using System.Text;
 using System.Windows.Forms;
 
-namespace DWS_Lite.lib
+namespace DWS_Lite.Lib
 {
     class WindowsUtil
     {
@@ -61,6 +62,24 @@ namespace DWS_Lite.lib
                 string value = "Product Name: " + getSystemProductName() + "\n";
                 value += "  Build: " + getSystemBuild();
                 return value;
+        }
+
+
+        public static void CreateRestorePoint(string description)
+        {
+            ManagementScope oScope = new ManagementScope("\\\\localhost\\root\\default");
+            ManagementPath oPath = new ManagementPath("SystemRestore");
+            ObjectGetOptions oGetOp = new ObjectGetOptions();
+            ManagementClass oProcess = new ManagementClass(oScope, oPath, oGetOp);
+
+            ManagementBaseObject oInParams =
+                oProcess.GetMethodParameters("CreateRestorePoint");
+            oInParams["Description"] = description;
+            oInParams["RestorePointType"] = 12; // MODIFY_SETTINGS
+            oInParams["EventType"] = 100;
+
+            ManagementBaseObject oOutParams =
+                oProcess.InvokeMethod("CreateRestorePoint", oInParams, null);
         }
 
     }
